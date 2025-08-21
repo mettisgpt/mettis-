@@ -1,0 +1,276 @@
+How to use
+
+Run the natural-language query in the app (ask Trey AI).
+
+Compare Trey AI answer to the result of the SQL check (run against your DB).
+
+Confirm the “What to verify” items.
+
+tbl_financialrawdata (annual / non-ratio numeric data)
+
+Natural-language tests:
+
+“Revenue of <CompanyName or Ticker> for 2023-12-31 (Unconsolidated).”
+
+“Net income (PAT) of <Ticker> for the latest annual period.”
+
+“Total assets of <CompanyName> for Q4 2024.”
+
+“Show me the FY 2022 EPS (if stored in non-ratio table) for <Ticker>.”
+
+“Give me the most recent quarterly revenue (most recent period) for <Ticker>.”
+
+“Return consolidated revenue vs unconsolidated revenue for <Ticker> for 2024-12-31.”
+
+SQL checks (examples — replace ids/names):
+
+SELECT TOP 10 Value_, PeriodEnd, TermID, ConsolidationID FROM tbl_financialrawdata WHERE CompanyID = <id> AND SubHeadID = <subhead> ORDER BY PeriodEnd DESC;
+
+SELECT Value_, FY, PeriodEnd FROM tbl_financialrawdata WHERE CompanyID = <id> AND SubHeadID = <subhead> AND FY = 2023;
+
+What to verify:
+
+Correct table used (financialrawdata vs quarter/TTM tables).
+
+PeriodEnd and TermID match user intent (annual vs quarter).
+
+Consolidation filter (1 = consolidated, 2 = unconsolidated) applied correctly.
+
+Units (tbl_unitofmeasurement via head's UnitID) reported correctly.
+
+If user asked “latest”, returned the max(PeriodEnd) relevant row.
+
+tbl_financialrawdata_Quarter (quarterly raw data)
+
+Natural-language tests:
+
+“Revenue of <Ticker> for Q1 2024.”
+
+“What is EPS for <Ticker> in the most recent quarter?”
+
+“List last 4 quarterly revenues for <Ticker> (quarterly series).”
+
+“Return PeriodEnd and Value for SubHeadID = <id> for <Ticker> in 2024.”
+
+“Show Quarter table is used when the resolved term is Q1/Q2/Q3/Q4.”
+
+SQL checks:
+
+SELECT Value_, TermID, PeriodEnd FROM tbl_financialrawdata_Quarter WHERE CompanyID=<id> AND SubHeadID=<subhead> ORDER BY PeriodEnd DESC;
+
+SELECT MAX(PeriodEnd) FROM tbl_financialrawdata_Quarter WHERE CompanyID=<id> AND SubHeadID=<subhead> AND ConsolidationID=<cid>;
+
+What to verify:
+
+When term resolves to a quarterly term (TermID 5-8), the Quarter table is used.
+
+PeriodEnd returned is correct and consistent with TermID.
+
+Series queries (last 4 quarters) return contiguous quarter rows and ordering is correct.
+
+tbl_financialrawdataTTM (TTM / aggregated)
+
+Natural-language tests:
+
+“TTM revenue for <Ticker> as of 2024-12-31.”
+
+“Give me TTM EPS of <Company> for the most recent period.”
+
+“Compare TTM revenue vs last annual revenue for <Ticker>.”
+
+SQL checks:
+
+SELECT TOP 5 Value_, PeriodEnd, FY FROM tbl_financialrawdataTTM WHERE CompanyID=<id> AND SubHeadID=<subhead> ORDER BY PeriodEnd DESC;
+
+What to verify:
+
+TTM rows are present and correspond to trailing-12-month aggregates.
+
+When user asks for TTM or TTM keywords, system queries tbl_financialrawdataTTM.
+
+Unit handling and consolidation filters applied.
+
+tbl_ratiorawdata & tbl_ratiosheadmaster (ratios)
+
+Natural-language tests:
+
+“Debt to Equity ratio of <Ticker> for 2023-12-31 (Unconsolidated).”
+
+“Latest ROE for <Ticker>.”
+
+“Show Debt to Equity for <Ticker> for the most recent quarter.”
+
+“What is Current Ratio for <Ticker> for Q2 2024?”
+
+“If I ask for a ratio that is industry-specific, the system should validate industry mapping.”
+
+SQL checks:
+
+SELECT TOP 5 Value_, PeriodEnd, TermID, SubHeadID FROM tbl_ratiorawdata WHERE CompanyID=<id> AND SubHeadID=<subhead> ORDER BY PeriodEnd DESC;
+
+SELECT * FROM tbl_ratiosheadmaster WHERE SubHeadID = <subhead>;
+
+What to verify:
+
+Ratio head resolution uses tbl_ratiosheadmaster (not tbl_headsmaster).
+
+Industry/sector validation: ratio head's IndustryID must be validated against company sector via tbl_industryandsectormapping.
+
+r.Value_ and r.PeriodEnd columns used correctly.
+
+If ratio head exists but no data for the company/period, system should fallback or prompt.
+
+tbl_disectionrawdata, tbl_disectionrawdata_Quarter, tbl_disectionrawdataTTM, tbl_disectionrawdata_Ratios (dissection / calculated)
+
+Natural-language tests:
+
+“HBL PAT PER SHARE for 2024-12-31.” (Per Share group)
+
+“HBL EPS Annual Growth for 2024-12-31.” (Annual Growth group)
+
+“What is Revenue as % of Assets for <Ticker> for 2023-12-31?” (Percentage Of Asset)
+
+“Show Quarterly Growth of Revenue for <Ticker> for last 4 quarters.” (Quarterly Growth)
+
+“Get disection group 1 (Per Share) value for Company X, SubHeadID Y, period Z.”
+
+SQL checks:
+
+SELECT Value_, PeriodEnd, DisectionGroupID FROM tbl_disectionrawdata WHERE CompanyID=<id> AND SubHeadID=<subhead> AND PeriodEnd='<date>' AND DisectionGroupID=<group>;
+
+Quarter version: tbl_disectionrawdata_Quarter similar query.
+
+Ratios version: tbl_disectionrawdata_Ratios for ratio-based disections.
+
+What to verify:
+
+Correct DisectionGroupID mapping (Per Share = 1, Annual Growth = 2, etc.).
+
+PeriodEnd and TermID consistency with requested period type.
+
+When user asks for “PAT PER SHARE”, system must use disection table with DisectionGroupID = Per Share.
+
+For ratio disections, check tbl_disectionrawdata_Ratios and ensure units/percentage labels returned correctly.
+
+tbl_headsmaster (regular financial heads)
+
+Natural-language tests:
+
+“Find SubHeadID used for ‘Revenue’ / ‘Net Income’ / ‘EPS’ for Manufacturing companies.”
+
+“Return the unit and industry for SubHeadID 97 (EPS).”
+
+“What SubHeadIDs exist for ‘Operating Expenses’ in headsmaster?”
+
+SQL checks:
+
+SELECT * FROM tbl_headsmaster WHERE SubHeadName LIKE '%Earnings%' OR SubHeadName LIKE '%EPS%';
+
+SELECT UnitID, IndustryID FROM tbl_headsmaster WHERE SubHeadID = <id>;
+
+What to verify:
+
+Head master provides UnitID and IndustryID to help map and validate the head.
+
+Use headsmaster for regular financial metrics (not ratios).
+
+tbl_ratio_subhead_mapping & tbl_industryandheadsmastermapping (critical mapping tables)
+
+Natural-language tests:
+
+“Does Debt to Equity ratio apply to company X’s industry/sector?”
+
+“List all SubHeadIDs for ‘ROE’ applicable to Banks sector.”
+
+“Show mapping for ratio SubHeadID <id> → industry/sector.”
+
+SQL checks:
+
+SELECT * FROM tbl_ratio_subhead_mapping WHERE RatioHeadID = <ratio_id>;
+
+SELECT * FROM tbl_industryandheadsmastermapping WHERE IndustryID = <industry_id> AND SubHeadID = <subhead>;
+
+What to verify:
+
+Ratio mapping returns only subheads valid for the company’s industry/sector.
+
+When multiple subheads exist for a ratio, mapping gives the proper candidates and the system selects the one with data for that company/period.
+
+If none match, system prompts user / provides fallback list.
+
+tbl_keystatsmaster, tbl_keystatssubheadsmapping, tbl_keystatsheadsnames (key stats)
+
+Natural-language tests:
+
+“Show Book Value Per Share (BVPS) of <Ticker> for 2024-12-31.”
+
+“Return Market Cap and Outstanding Shares for <Ticker>.”
+
+“List keystats available for Banks sector.”
+
+SQL checks:
+
+SELECT * FROM tbl_keystatsmaster WHERE KeyStatName LIKE '%Book Value%';
+
+SELECT * FROM tbl_keystatssubheadsmapping WHERE KeystatID = <id>;
+
+SELECT Value_ FROM tbl_keystatslive WHERE CompanyID = <id> AND SubHeadID = <subhead>;
+
+What to verify:
+
+Keystats mapping to subheads is correct for each company/industry.
+
+If keystat is calculated, verify formula exists in tbl_financialmetriccalculationmapping.
+
+Cross-table / period-resolution / fallback tests (important integration checks)
+
+Natural-language tests:
+
+“Most recent EPS for <Ticker>” — should resolve to latest Quarter/TTM/Annual depending on availability.
+
+“YTD revenue for <Ticker>” — should return TTM or aggregated YTD as implemented.
+
+“Last reported quarter net income for <Ticker> (Consolidated).”
+
+“If I ask for 'revenue growth' and multiple subheads or disection groups exist, list options for me to choose.”
+
+“If I ask for a ratio but the ratio head has no data for this company, give me the available similar ratio heads or ask me to select.”
+
+SQL checks / debug:
+
+-- Get available PeriodEnd list
+SELECT DISTINCT PeriodEnd, TermID FROM tbl_financialrawdata WHERE CompanyID=<id> AND SubHeadID=<subhead> ORDER BY PeriodEnd DESC;
+
+-- Check for head data in ratio vs financial
+SELECT 'ratio' AS source, COUNT(*) FROM tbl_ratiorawdata WHERE CompanyID=<id> AND SubHeadID=<subhead> UNION ALL SELECT 'fin' AS source, COUNT(*) FROM tbl_financialrawdata WHERE CompanyID=<id> AND SubHeadID=<subhead>;
+
+What to verify:
+
+Relative terms (“latest”, “most recent”, “last reported”, “YTD”) are resolved via resolve_relative_period logic and result in proper TermID & PeriodEnd.
+
+System uses fallback logic: find head IDs with data, then choose appropriate table (Quarter/TTM/Annual/ratio/disection).
+
+When multiple candidate subheads exist, system either auto-selects the one with data OR prompts user with a short list (company + industry + term context).
+
+Edge / negative tests (robustness)
+
+Ask a metric that does not exist: “Give me XYZ metric for <Ticker>” → Should return a friendly prompt with available similar metrics.
+
+Ask for a ratio that exists but not for that industry: “ROE for company in sector where ROE not applicable” → Should state not applicable and show alternatives.
+
+Ask for a period where data is missing: “Revenue for <Ticker> for 2000-12-31” → Should indicate no data and optionally show nearest periods.
+
+Ask ambiguous metric: “EPS” where multiple EPS-like heads exist → System should present options with SubHeadName + sample periods.
+
+SQL checks:
+
+SELECT * FROM tbl_headsmaster WHERE SubHeadName LIKE '%XYZ%' — expect 0 rows.
+
+SELECT TOP 5 SubHeadID, SubHeadName FROM tbl_headsmaster WHERE SubHeadName LIKE '%EPS%' — test ambiguity.
+
+What to verify:
+
+Clear fallback interactions (prompt user, present options).
+
+No silent incorrect matches.
+

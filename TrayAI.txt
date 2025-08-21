@@ -1,0 +1,325 @@
+# TrayAI Terminal Response Log
+
+Final Response - Timestamp: 2025-08-18 14:40:03
+
+Query: What was the EPS of HBL in Q2 2023
+
+Response: Based on the provided financial information, the EPS of Habib Bank Limited for Q2 2023 was 8.461278144871416 Rupees.
+Query #: 1
+Timestamp: 2025-08-18 17:23:22
+User Query: What is the current ratio of MCB for 2023?
+
+Response:
+I apologize, but the information provided in the input seems to be incorrect. The date mentioned is 2025-03-31 and it should be 2023-03-31. However, the current ratio cannot be calculated based on the debt to equity ratio metric, as the current ratio is a liquidity ratio that measures a company's ability to pay its short-term obligations using its current assets.
+
+==================================================
+
+Query #: 2
+Timestamp: 2025-08-18 17:26:33
+User Query: What was the total revenue of HBL in FY 2022?
+
+Response:
+I apologize, but I do not have the necessary information to provide an accurate answer to this question as provided. The financial information given only mentions revenue reserves for a specific period and type, but does not contain any details about the total revenue for the entire fiscal year of 2022.
+
+==================================================
+
+Query #: 3
+Timestamp: 2025-08-18 17:34:29
+User Query: What is the profit of XYZ Bank in 2025?
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: Company 'XYZ Bank' not found
+
+==================================================
+
+
+Query #: 4
+Timestamp: 2025-08-19 23:19:24
+User Query: what is lucky's Profit After Tax
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: Term 'not specified' not found
+
+==================================================
+
+Query #: 5
+Timestamp: 2025-08-19 23:22:57
+User Query: what is current  lucky's Profit After Tax 
+
+Response:
+Based on the financial information provided, Lucky Core Industries Limited's profit after tax for Q3 in 2025 was 2587028000.0 Rupees.
+
+==================================================
+
+Query #: 6
+Timestamp: 2025-08-19 23:25:00
+User Query: 	quit
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: Company 'ABC Company' not found
+
+==================================================
+
+Session #: 1
+Timestamp: 2025-08-19 23:25:04
+Session Type: Interactive CLI Session
+
+Terminal Output:
+=== Financial RAG CLI ===
+
+Initializing Financial RAG system...
+Financial RAG system initialized successfully!
+
+Type 'exit' or 'quit' to end the session.
+Example queries:
+- What was the EPS of HBL in Q2 2023 (standalone)?
+- Revenue of OGDC in 2022 full year, consolidated
+- What is the ROE of UBL for FY 2023?
+
+Enter your financial query: what is lucky's Profit After Tax
+
+Processing query...
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: Term 'not specified' not found
+
+--------------------------------------------------
+
+Enter your financial query: what is current  lucky's Profit After Tax 
+
+Processing query...
+[Debug Output]
+INFO:app.core.database.fix_head_id:Metric 'Profit After Tax' appears to be a regular financial metric based on its name
+INFO:app.core.database.fix_head_id:Final classification for 'Profit After Tax': Regular Financial Metric
+INFO:app.core.database.fix_head_id:Will use tbl_headsmaster for lookup
+INFO:app.core.database.fix_head_id:Found SectorID: 805.0 for company ID: 291300
+INFO:app.core.database.fix_head_id:Found IndustryID: 1 for SectorID: 805.0
+INFO:app.core.database.fix_head_id:Found 1 exact matches in regular heads for metric: Profit After Tax
+INFO:app.core.database.fix_head_id:Exact match: SubHeadID 151 (Profit After Tax) has 1 rows of data
+INFO:app.core.database.fix_head_id:Found data for exact match SubHeadID 151 (Profit After Tax)
+
+
+Response:
+Based on the financial information provided, Lucky Core Industries Limited's profit after tax for Q3 in 2025 was 2587028000.0 Rupees.
+
+--------------------------------------------------
+
+Enter your financial query: 	quit
+
+Processing query...
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: Company 'ABC Company' not found
+
+--------------------------------------------------
+
+Enter your financial query: quit
+
+Exiting Financial RAG CLI. Goodbye!
+
+==================================================
+
+Query #: 7
+Timestamp: 2025-08-20 01:03:33
+User Query: hat is current FAUJI FOOD's Profit After Tax 
+
+Response:
+Based on the provided financial information, Fauji Foods Limited reported a profit after tax of INR 361,463,369 in Q1 of the year 2025.
+
+==================================================
+
+Query #: 8
+Timestamp: 2025-08-20 01:29:49
+User Query: What is FAUJI CEMENT's Profit After Tax LATEST TTM  
+
+Response:
+Based on the provided financial information, FAUJI CEMENT's Profit After Tax for Q3 2025-03-31 is INR 2139887000.
+
+==================================================
+
+Query #: 9
+Timestamp: 2025-08-20 01:35:00
+User Query: WHAT IS HBL'S PROFIT AFTER TAX FOR PER SHARE Q1 2022 
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: Term 'PER SHARE' not found
+
+==================================================
+
+Session #: 2
+Timestamp: 2025-08-20 01:57:16
+Session Type: Interactive CLI Session
+
+Terminal Output:
+=== Financial RAG CLI ===
+
+Initializing Financial RAG system...
+Financial RAG system initialized successfully!
+
+Type 'exit' or 'quit' to end the session.
+Example queries:
+- What was the EPS of HBL in Q2 2023 (standalone)?
+- Revenue of OGDC in 2022 full year, consolidated
+- What is the ROE of UBL for FY 2023?
+
+Enter your financial query: hat is current FAUJI FOOD's Profit After Tax 
+
+Processing query...
+[Debug Output]
+INFO:app.core.database.fix_head_id:Metric 'Profit After Tax' appears to be a regular financial metric based on its name
+INFO:app.core.database.fix_head_id:Final classification for 'Profit After Tax': Regular Financial Metric
+INFO:app.core.database.fix_head_id:Will use tbl_headsmaster for lookup
+INFO:app.core.database.fix_head_id:Found SectorID: 810.0 for company ID: 331240
+INFO:app.core.database.fix_head_id:Found IndustryID: 1 for SectorID: 810.0
+INFO:app.core.database.fix_head_id:Found 1 exact matches in regular heads for metric: Profit After Tax
+INFO:app.core.database.fix_head_id:Exact match: SubHeadID 151 (Profit After Tax) has 1 rows of data
+INFO:app.core.database.fix_head_id:Found data for exact match SubHeadID 151 (Profit After Tax)
+
+
+Response:
+Based on the provided financial information, Fauji Foods Limited reported a profit after tax of INR 361,463,369 in Q1 of the year 2025.
+
+--------------------------------------------------
+
+Enter your financial query: What is FAUJI CEMENT's Profit After Tax LATEST TTM  
+
+Processing query...
+
+Response:
+Based on the provided financial information, FAUJI CEMENT's Profit After Tax for Q3 2025-03-31 is INR 2139887000.
+
+--------------------------------------------------
+
+Enter your financial query: WHAT IS HBL'S PROFIT AFTER TAX FOR PER SHARE Q1 2022 
+
+Processing query...
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: Term 'PER SHARE' not found
+
+--------------------------------------------------
+
+Enter your financial query: QUIT
+
+Exiting Financial RAG CLI. Goodbye!
+
+==================================================
+
+Query #: 10
+Timestamp: 2025-08-20 02:43:10
+User Query: UBL's profit after text for per share on 2024-12-31
+
+Response:
+The question asks for UBL's profit after text for per share on 2024-12-31. However, the given information does not provide this information. It only provides the debt to equity ratio of UBL on 2024-12-31. Therefore, I do not have that information.
+
+==================================================
+
+Session #: 3
+Timestamp: 2025-08-20 05:30:23
+Session Type: Interactive CLI Session
+
+Terminal Output:
+
+=== Financial RAG CLI ===
+
+Initializing Financial RAG system...
+Financial RAG system initialized successfully!
+
+Type 'exit' or 'quit' to end the session.
+Example queries:
+- What was the EPS of HBL in Q2 2023 (standalone)?
+- Revenue of OGDC in 2022 full year, consolidated
+- What is the ROE of UBL for FY 2023?
+
+Enter your financial query: 
+Processing query...
+
+Response:
+The question asks for UBL's profit after text for per share on 2024-12-31. However, the given information does not provide this information. It only provides the debt to equity ratio of UBL on 2024-12-31. Therefore, I do not have that information.
+
+--------------------------------------------------
+
+Enter your financial query: 
+Exiting Financial RAG CLI. Goodbye!
+INFO:app.core.database.fix_head_id:Metric 'profit after text for per share' appears to be a ratio based on its name
+INFO:app.core.database.fix_head_id:Final classification for 'profit after text for per share': Ratio Metric
+INFO:app.core.database.fix_head_id:Will use tbl_ratiosheadmaster for lookup
+INFO:app.core.database.fix_head_id:Found SectorID: 807.0 for company ID: 61180
+INFO:app.core.database.fix_head_id:Found IndustryID: 2 for SectorID: 807.0
+INFO:app.core.database.fix_head_id:No exact ratio matches with industry validation, trying contains match with industry filter
+INFO:app.core.database.fix_head_id:Found 1 exact matches in ratio heads for metric: profit after text for per share
+INFO:app.core.database.fix_head_id:Exact match: Ratio SubHeadID 6008.0 (Debt to Equity) has 1 rows of data
+INFO:app.core.database.fix_head_id:Found data for exact match ratio SubHeadID 6008.0 (Debt to Equity)
+
+
+==================================================
+
+Query #: 11
+Timestamp: 2025-08-20 19:46:46
+User Query: what is HBL's asset in first quarter of 2024
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: No data found for the specified parameters
+
+==================================================
+
+Query #: 12
+Timestamp: 2025-08-20 19:50:31
+User Query: what is HBL's asset in first 3 month of 2024
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: Term 'first 3 months of 2024' not found
+
+==================================================
+
+Query #: 13
+Timestamp: 2025-08-20 19:53:40
+User Query: what is HBL's asset in 2024 for 3 month 
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: Term '2024' not found
+
+==================================================
+
+Query #: 14
+Timestamp: 2025-08-20 19:55:02
+User Query: what is HBL's asset for  3 month in year 2024 
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: Term '3 month' not found
+
+==================================================
+
+Query #: 15
+Timestamp: 2025-08-21 23:35:00
+User Query: what is per share EPS of UBL on 31-12-2022
+
+Response:
+I'm sorry, I couldn't retrieve the financial information: (pyodbc.ProgrammingError) ('42S02', "[42S02] [Microsoft][ODBC Driver 17 for SQL Server][SQL Server]Invalid object name 'tbl_termsmaster'. (208) (SQLExecDirectW)")
+[SQL: 
+            SELECT 
+                d.CompanyID,
+                d.SubHeadID,
+                d.TermID,
+                d.ConsolidationID,
+                d.DisectionGroupID,
+                d.Amount,
+                d.FinDate,
+                c.CompanyName,
+                h.SubHeadName as MetricName,
+                t.TermName,
+                con.ConsolidationName
+            FROM tbl_disectionrawdata d
+            JOIN tbl_companieslist c ON d.CompanyID = c.CompanyID
+            JOIN tbl_headsmaster h ON d.SubHeadID = h.SubHeadID
+            JOIN tbl_termsmaster t ON d.TermID = t.TermID
+            JOIN tbl_consolidationmaster con ON d.ConsolidationID = con.ConsolidationID
+            WHERE d.CompanyID = 61180
+                AND d.SubHeadID = 6008.0
+                AND d.ConsolidationID = 2
+                AND d.DisectionGroupID = 1
+             AND d.TermID = 1 AND d.FinDate = '2022-12-31' ORDER BY d.FinDate DESC]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+==================================================
+

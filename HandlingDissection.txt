@@ -1,0 +1,243 @@
+# How TREA should handle **DissectionGroup** queries (clear plan + SQL + code ideas)
+
+Nice — you’ve given the exact behavior we want. Below I’ll explain, step-by-step, what TREA AI must **recognize**, **resolve**, and **run** when a user asks about a DissectionGroup metric (e.g. “HBL PAT per share for Q1 2022”). I’ll include the SQL template you already gave, the code-level places to change, fallback behaviour, logging/testing suggestions, and example queries to validate.
+
+---
+
+## 1) Goal (short)
+
+When a user’s query mentions a **DisectionGroup** (Per Share, Annual Growth, % of Asset, % of Sales/Revenue, Quarterly Growth), TREA must:
+
+1. Detect that the requested metric belongs to a dissection group.
+2. Map the DissectionGroup name → `DisectionGroupID` via `tbl_disectionmaster`.
+3. Resolve company → CompanyID, consolidation → ConsolidationID, period/term → TermID / PeriodEnd (including relative terms).
+4. Find the correct `SubHeadID` (head) within that disection context (i.e., candidate SubHeadIDs that also have `DisectionGroupID` matching).
+5. Query `tbl_disectionrawdata` (or its period-specific variants) using the dissection filters and return the result.
+
+---
+
+## 2) SQL target (your canonical query)
+
+Use this exact pattern when the metric is a dissection metric:
+
+```sql
+SELECT f.Value_ AS Value,
+       u.unitname AS Unit,
+       t.term AS Term,
+       c.CompanyName AS Company,
+       h.SubHeadName AS Metric,
+       con.consolidationname AS Consolidation,
+       f.PeriodEnd AS PeriodEnd
+FROM tbl_disectionrawdata f
+JOIN tbl_headsmaster h ON f.SubHeadID = h.SubHeadID
+JOIN tbl_unitofmeasurement u ON h.UnitID = u.UnitID
+JOIN tbl_terms t ON f.TermID = t.TermID
+JOIN tbl_companieslist c ON f.CompanyID = c.CompanyID
+JOIN tbl_industryandsectormapping im ON im.sectorid = c.SectorID AND h.IndustryID = im.industryid
+JOIN tbl_consolidation con ON f.ConsolidationID = con.ConsolidationID
+WHERE f.CompanyID = :company_id
+  AND f.SubHeadID = :subhead_id
+  AND f.PeriodEnd = :period_end
+  AND f.ConsolidationID = :consolidation_id
+  AND f.DisectionGroupID = :disection_group_id
+ORDER BY f.PeriodEnd DESC;
+```
+
+Notes:
+
+* Use parameter binding (`:company_id`, etc.) — avoid string interpolation for safety.
+* If term is relative (latest/most recent/last reported/YTD etc.), resolve `period_end` with logic (see below).
+
+---
+
+## 3) Where to change TREA’s code (overview)
+
+Update these modules/functions:
+
+1. **Entity extraction** (`financial_rag._extract_entities`):
+
+   * Detect dissection indicators in user text: words/phrases like `per share`, `per-share`, `per share PAT`, `annual growth`, `YoY`, `quarterly growth`, `% of assets`, `% of sales`, `percentage of sales`, `percentage of assets`, `disection`, `disection group`.
+   * Set `is_dissection = True`, `disection_group = 'Per Share'` (or standardized group key).
+
+2. **Head resolution / lookup** (`fix_head_id.py` or equivalent):
+
+   * When `is_dissection` is True, **prefer** `tbl_headsmaster` entries that have corresponding records in the dissection raw table with the matching `DisectionGroupID`.
+   * Query `tbl_disectionmaster` to map `disection_group` → `DisectionGroupID`.
+   * Filter candidate SubHeadIDs by existence in `tbl_disectionrawdata` (or variant) for given company/consolidation/term to ensure data availability.
+
+3. **Term resolution** (`financial_db.get_term_id` and `resolve_relative_period`):
+
+   * TermID table mapping you gave: TermID 1→3M, 2→6M, 3→9M, 4→12M, 5→Q1, 6→Q2, 7→Q3, 8→Q4.
+   * Ensure you can return either a `term_id` (Q1/Q2/etc.) or a resolved `period_end` date when the user supplied a date/relative term. For dissection queries, TREA should accept either.
+   * Support: exact PeriodEnd strings, “most recent”, “last reported”, “current period”, “YTD”, “current quarter”, and map them to `period_end` via query (see below).
+
+4. **Query builder** (`financial_db.build_financial_query`):
+
+   * When `is_dissection` True, use `tbl_disectionrawdata` (or `_Quarter`, `_TTM` depending on term) instead of `tbl_financialrawdata`.
+   * Add `AND f.DisectionGroupID = :disection_group_id` to WHERE clause.
+   * If no `period_end` given, and user asked relative, construct subquery to get latest `PeriodEnd`, e.g. `AND f.PeriodEnd = (SELECT MAX(PeriodEnd) FROM tbl_disectionrawdata WHERE CompanyID = f.CompanyID AND ConsolidationID = f.ConsolidationID AND SubHeadID = f.SubHeadID AND DisectionGroupID = f.DisectionGroupID)`
+
+5. **Fallback / UX** (`rag` manager):
+
+   * If SubHeadID not found, present user with the list of available SubHeadNames for that company + disection group + term (see fallback section).
+
+---
+
+## 4) Term & Period handling (important)
+
+TREA must resolve the user term into either:
+
+* a concrete `PeriodEnd` (YYYY-MM-DD) OR
+* an explicit TermID where appropriate (Q1/Q2/Q3/Q4 or 3M/6M/9M/12M).
+
+Rules:
+
+* If user writes an explicit date → parse and use `PeriodEnd`.
+* If user asks for `Most Recent` / `Last Reported` / `Most Recent Quarter` → run a `MAX(PeriodEnd)` query on the appropriate raw table (dissection table if dissection query).
+* If user asks `YTD` for annual metrics → map to TermID 4 (12M) and resolve the most recent annual `PeriodEnd` for that company/consolidation.
+* If user asks `Current Period` / `Current Quarter` → look up the latest PeriodEnd in quarterly table (TermID = Q1..Q4 if needed).
+* Term table mapping you provided must be used (1→3M etc.) — code must rely on this mapping.
+
+Example resolve logic (pseudocode):
+
+```python
+def resolve_relative_period(db, company_id, consolidation_id, relative_type, preferred_table='disection'):
+    if relative_type in ('most_recent', 'most_recent_quarter', 'last_reported'):
+        table = 'tbl_disectionrawdata' if preferred_table == 'disection' else 'tbl_financialrawdata'
+        q = f"SELECT MAX(PeriodEnd) FROM {table} WHERE CompanyID = ? AND ConsolidationID = ?"
+        period_end = db.execute_scalar(q, (company_id, consolidation_id))
+        return period_end
+    if relative_type == 'ytd':
+        # Find latest FY/12M PeriodEnd
+        q = f"SELECT MAX(PeriodEnd) FROM tbl_disectionrawdata WHERE CompanyID=? AND ConsolidationID=? AND TermID=4"
+        ...
+```
+
+---
+
+## 5) SubHead resolve algorithm for dissection
+
+1. Normalize metric name (lowercase, remove punctuation).
+2. Find exact matches in `tbl_headsmaster.SubHeadName`.
+3. Filter resulting SubHeadIDs by checking `tbl_disectionrawdata` for rows with:
+
+   * `CompanyID = company_id`
+   * `DisectionGroupID = disection_group_id`
+   * `ConsolidationID = consolidation_id`
+   * (optionally TermID/PeriodEnd filter)
+4. If none found, try `LIKE`/contains matches.
+5. If still none found, **ask user**: present list of available SubHeadNames for that company + disection group + term and request selection.
+
+SQL to get valid subheads for fallback:
+
+```sql
+SELECT DISTINCT h.SubHeadID, h.SubHeadName
+FROM tbl_disectionrawdata f
+JOIN tbl_headsmaster h ON f.SubHeadID = h.SubHeadID
+WHERE f.CompanyID = :company_id
+  AND f.ConsolidationID = :consolidation_id
+  AND f.DisectionGroupID = :disection_group_id
+ORDER BY h.SubHeadName;
+```
+
+---
+
+## 6) Fallback UX (how to ask user)
+
+If no SubHeadID found:
+
+* Respond: “I couldn't find a matching metric for ‘PAT growth’ under Per Share for Atlas Honda. Here are available metrics for Atlas Honda (Per Share): \[list]. Please pick one or rephrase.”
+* Provide numbered list; allow user to reply with number or full name.
+* If many choices, limit to top 20 and add “or type ‘show more’”.
+
+---
+
+## 7) Code snippets — examples (concise)
+
+**Decision in query builder (pseudocode):**
+
+```python
+if is_disection:
+    table = 'tbl_disectionrawdata'
+    where_disection = 'AND f.DisectionGroupID = :disection_group_id'
+else:
+    table = 'tbl_financialrawdata'
+    where_disection = ''
+
+sql = f"""
+SELECT f.Value_ as Value, u.unitname AS Unit, t.term AS Term, c.CompanyName AS Company,
+       h.SubHeadName AS Metric, con.consolidationname AS Consolidation, f.PeriodEnd as PeriodEnd
+FROM {table} f
+JOIN tbl_headsmaster h ON f.SubHeadID = h.SubHeadID
+...
+WHERE f.CompanyID = :company_id
+  AND f.SubHeadID = :subhead_id
+  AND f.ConsolidationID = :consolidation_id
+  {where_disection}
+  {period_clause}
+ORDER BY f.PeriodEnd DESC
+"""
+```
+
+**Resolve relative period (pseudocode):**
+
+```python
+def get_latest_period_end(db, table, company_id, consolidation_id, subhead_id=None, disection_group_id=None):
+    q = f"SELECT MAX(PeriodEnd) FROM {table} WHERE CompanyID = ? AND ConsolidationID = ?"
+    params = [company_id, consolidation_id]
+    if subhead_id: q += " AND SubHeadID = ?"; params.append(subhead_id)
+    if disection_group_id: q += " AND DisectionGroupID = ?"; params.append(disection_group_id)
+    return db.execute_scalar(q, params)
+```
+
+---
+
+## 8) Tests to run
+
+Create `test_dissection_metrics.py` with these scenarios:
+
+* Exact-date dissection query: `HBL PAT PER SHARE FOR 2024-12-31` → expect data from `tbl_disectionrawdata` with `DisectionGroupID` matching Per Share.
+* Relative most recent: `What is the most recent PAT per share for HBL?` → expect `PeriodEnd` = latest PeriodEnd from dissection table.
+* YTD dissection: `YTD Revenue growth for OGDC` → ensure resolves to TermID=4 (12M) and uses dissection table if requested.
+* Fallback list: `PAT growth for Atlas Honda per share` where no direct subhead exists → responds with selectable list.
+* Quarterly variant: `QoQ PAT growth for Atlas Honda for most recent quarter.` → resolve Q term and query quarter-specific dissection table if exists.
+
+---
+
+## 9) Logging & debugging
+
+* Log each decision: detected `is_disection`, `disection_group`, `company_id`, `consolidation_id`, resolved `period_end`, `subhead_candidates` (top 10), and final SQL executed.
+* Add warnings when `DisectionGroupID` not found or when `tbl_disectionrawdata` has no rows for the context.
+
+---
+
+## 10) Example queries for manual testing (quick list)
+
+* `HBL PAT per share for 2024-12-31`
+* `What is the most recent PAT per share for HBL?`
+* `HBL PAT Per Share Q1 2022`
+* `YTD revenue growth for OGDC`
+* `Show me per share metrics for Atlas Honda (Per Share)` — should list available SubHeadNames.
+* `QoQ PAT growth for Atlas Honda for most recent quarter`
+
+---
+
+## 11) Checklist for the developer to implement
+
+1. Update `_extract_entities` to detect `disection_group` and normalize names.
+2. Add helper `get_disection_group_id(name)` that queries `tbl_disectionmaster`.
+3. Update head-finding logic: when `is_disection`, restrict search to subheads that appear in `tbl_disectionrawdata` with that `DisectionGroupID`.
+4. Update `build_financial_query` to use `tbl_disectionrawdata` tables and include `AND f.DisectionGroupID = :disection_group_id`.
+5. Update relative-term resolver to resolve `period_end` against the dissection table when `is_disection` True.
+6. Implement fallback: query available dissection subheads for the company and offer them to the user.
+7. Add unit/integration tests covering exact dates, relative terms, and fallbacks.
+8. Ensure robust logging for each step.
+
+---
+
+## 12) Final notes & gotchas
+
+* **Table variants**: there are `_Quarter`, `_TTM`, and base tables. Choose the table based on resolved TermID (quarterly → `_Quarter`, TTM → `_TTM`, others → base).
+* **Term mapping**: use your TermID mapping (3M, 6M, 9M, 12M and Q1..Q4). Don’t hardcode strings — rely on `tbl_terms`.
+* **Performance**: prefer existence checks (`EXISTS` / indexed queries) when filtering SubHeadIDs by dissection data.
+
